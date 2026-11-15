@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>الكسبان على الأرض - منصة الشطرنج الاحترافية</title>
+    <!-- مكتبة Firebase للربط السحابي -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #121211;
+            --card-bg: #1e1e1b;
+            --primary-green: #367b36;
+            --gold-color: #d4af37;
+            --text-main: #f0f0f0;
+            --text-muted: #aaaaaa;
+            --light-sq: #f0d9b5;
+            --dark-sq: #b58863;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .panel {
+            background-color: var(--card-bg);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
+            text-align: center;
+        }
+
+        h1, h2, h3 {
+            margin-bottom: 10px;
+        }
+
+        .gold {
+            color: var(--gold-color);
+        }
+
+        p {
+            color: var(--text-muted);
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 12px;
+        }
+
+        input, button {
+            width: 100%;
+            padding: 14px;
+            margin: 6px 0;
+            border-radius: 10px;
+            border: none;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        input {
+            background-color: #2c2c28;
+            color: white;
+            text-align: center;
+            border: 1px solid #444;
+        }
+
+        input:focus {
+            outline: 2px solid var(--primary-green);
+        }
+
+        button {
+            background-color: var(--primary-green);
+            color: white;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:active {
+            opacity: 0.8;
+        }
+
+        button.secondary {
+            background-color: #333;
+            color: #ddd;
+        }
+
+        button.action-btn {
+            background-color: #1f4e79;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* تصميم رقعة الشطرنج الاحترافية الرسومية بالكامل */
+        .chess-board-container {
+            width: 100%;
+            max-width: 380px;
+            margin: 10px auto;
+            aspect-ratio: 1;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            border: 5px solid #4a3828;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+            background-color: #222;
+        }
+
+        .chess-square {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 38px;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+
+        .chess-square.light {
+            background-color: var(--light-sq);
+        }
+
+        .chess-square.dark {
+            background-color: var(--dark-sq);
+        }
+
+        .chess-square.selected {
+            background-color: #7b9e3b !important;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+
+        .chess-square.highlight {
+            background-color: #5c7c22 !important;
+        }
+
+        .player-info-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #272723;
+            padding: 10px 14px;
+            border-radius: 8px;
+            margin: 6px 0;
+            font-weight: bold;
+        }
+
+        .badge-streak {
+            background-color: var(--gold-color);
+            color: #000;
+            padding: 3px 9px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .queue-box {
+            background-color: #272723;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: right;
+            max-height: 130px;
+            overflow-y: auto;
+        }
+
+        .queue-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid #383832;
+            font-size: 14px;
+        }
+
+        .timer-display {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--gold-color);
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+
+    <!-- 1. شاشة البداية وإنشاء الغرفة -->
+    <div id="screen-home" class="panel">
+        <h1 class="gold">👑 الكسبان على الأرض</h1>
+        <p>منصة تحديات الشطرنج المستمرة. ابقَ على الرقعة وحقق 3 انتصارات متتالية لتفوز باللقب!</p>
+        <label style="display:block; text-align:right; font-size:13px; color:#aaa; margin-bottom:4px;">وقت انتظار بدء المسابقة (دقائق):</label>
+        <input type="number" id="input-wait-time" value="1" min="1" max="30">
+        <button onclick="createNewTournament()">إنشاء مسابقة جديدة</button>
+    </div>
+
+    <!-- 2. شاشة تسجيل اسم المستخدم -->
+    <div id="screen-join" class="panel hidden">
+        <h2>تسجيل الدخول للمسابقة</h2>
+        <p>أدخل اسم حسابك في Chess.com لجلب تقييمك الحقيقي تلقائياً والانضمام:</p>
+        <input type="text" id="input-username" placeholder="مثال: hikaru أو اسمك">
+        <button id="btn-join" onclick="joinTournament()">دخول قائمة الانتظار</button>
+        <p id="join-error-msg" style="color: #ff6b6b; margin-top: 8px;"></p>
+    </div>
+
+    <!-- 3. شاشة لوحة التحكم والغرفة -->
+    <div id="screen-room" class="panel hidden" style="padding: 10px;">
+        <button class="secondary" style="padding:10px; font-size:14px; margin-bottom:10px;" onclick="copyRoomLink()">🔗 نسخ رابط المشاركة للأصدقاء</button>
+
+        <!-- شاشة إعلان الفائز النهائي -->
+        <div id="panel-victory" class="panel hidden" style="background: linear-gradient(135deg, #262421, #4d3810); border: 2px solid var(--gold-color);">
+            <div style="font-size: 45px;">🏆</div>
+            <h2>انتهت المسابقة بنجاح!</h2>
+            <h3 class="gold" id="text-ultimate-winner">البطل: ...</h3>
+            <button onclick="location.href = location.pathname">إنشاء بطولة جديدة</button>
+        </div>
+
+        <!-- حالة العد التنازلي والاستراحة -->
+        <div id="panel-status" class="panel">
+            <h3 id="text-status-title">في انتظار اكتمال اللاعبين...</h3>
+            <div class="timer-display" id="text-timer">00:00</div>
+            <p id="text-status-desc">سيتم اختيار الملك الأول عشوائياً عند انتهاء الوقت المحدد.</p>
+            <button class="action-btn" onclick="addBotPlayersForTesting()">🤖 إضافة لاعبين وهميين للتجربة الفورية</button>
+        </div>
+
+        <!-- ساحة اللعب ورقعة الشطرنج التفاعلية -->
+        <div id="panel-game" class="panel hidden">
+            <div class="player-info-bar">
+                <div><span id="text-opp-name">الخصم</span> <span style="color:#888; font-size:13px;" id="text-opp-rating"></span></div>
+                <span style="background:#444; color:#fff; padding:3px 8px; border-radius:6px; font-size:12px;">المتحدي (الأسود)</span>
+            </div>
+
+            <!-- شبكة الرقعة المرئية -->
+            <div id="chess-board-grid" class="chess-board-container"></div>
+            
+            <p id="text-turn-info" class="gold" style="margin: 8px 0; font-weight:bold;"></p>
+
+            <div class="player-info-bar">
+                <div><span class="gold" id="text-king-name" style="font-weight:bold;">الملك</span> <span style="color:#888; font-size:13px;" id="text-king-rating"></span></div>
+                <span class="badge-streak">👑 فوز (<span id="text-streak-count">0</span>/3)</span>
+            </div>
+
+            <button class="secondary" style="background:#8b2626; margin-top:8px;" onclick="resignCurrentMatch()">🏳️ انسحاب من المباراة</button>
+        </div>
+
+        <!-- قائمة الانتظار -->
+        <div class="panel" style="margin-top: 10px;">
+            <h3>اللاعبون المنتظرون (<span id="text-queue-count">0</span>)</h3>
+            <div class="queue-box" id="box-queue-list"></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- محرك منطق الشطرنج الأساسي المبسط والمضمن بالكامل لضمان عدم وجود أخطاء خارجية -->
+<script>
+    // إعداد Firebase
+    const firebaseConfig = {
+        databaseURL: "https://kasban-e8755-default-rtdb.europe-west1.firebasedatabase.app/"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomId = urlParams.get('room');
+    let currentUser = JSON.parse(localStorage.getItem('kasban_user') || 'null');
+    let roomState = null;
+    let countdownTimer = null;
+
+    // رموز قطع الشطرنج Unicode
+    const piecesSymbols = {
+        'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔',
+        'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚'
+    };
+
+    // مصفوفة الحالة الابتدائية للرقعة
+    let boardState = [
+        ['r','n','b','q','k','b','n','r'],
+        ['p','p','p','p','p','p','p','p'],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['P','P','P','P','P','P','P','P'],
+        ['R','N','B','Q','K','B','N','R']
+    ];
+    let turn = 'w'; // 'w' أو 'b'
+    let selectedSq = null;
+
+    // التوجيه الأولي للشاشات
+    if (roomId) {
+        document.getElementById('screen-home').classList.add('hidden');
+        if (currentUser && currentUser.roomId === roomId) {
+            enterRoomUI();
+        } else {
+            document.getElementById('screen-join').classList.remove('hidden');
+        }
+    }
+
+    function createNewTournament() {
+        const mins = parseInt(document.getElementById('input-wait-time').value) || 1;
+        const newId = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const startAt = Date.now() + (mins * 60 * 1000);
+
+        db.ref('rooms/' + newId).set({
+            status: 'waiting',
+            nextEventTime: startAt,
+            king: null,
+            opponent: null,
+            streak: 0,
+            boardFen: serializeBoard(),
+            turn: 'w',
+            players: {}
+        }).then(() => {
+            window.location.search = '?room=' + newId;
+        });
+    }
+
+    async function joinTournament() {
+        const username = document.getElementById('input-username').value.trim().toLowerCase();
+        const errEl = document.getElementById('join-error-msg');
+        const btn = document.getElementById('btn-join');
+
+        if (!username) {
+            errEl.innerText = "يرجى إدخال اسم المستخدم";
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = "جاري جلب بيانات التقييم...";
+
+        try {
+            const res = await fetch(`https://api.chess.com/pub/player/${username}/stats`);
+            if (!res.ok) throw new Error("لم يتم العثور على حساب Chess.com بهذا الاسم");
+            const data = await res.json();
+            const rating = data.chess_rapid?.last?.rating || data.chess_blitz?.last?.rating || 800;
+
+            currentUser = { username, rating, roomId };
+            localStorage.setItem('kasban_user', JSON.stringify(currentUser));
+
+            await db.ref(`rooms/${roomId}/players/${username}`).set({ username, rating, isBot: false });
+            enterRoomUI();
+        } catch (e) {
+            errEl.innerText = e.message;
+            btn.disabled = false;
+            btn.innerText = "دخول قائمة الانتظار";
+        }
+    }
+
+    async function addBotPlayersForTesting() {
+        const r = currentUser?.rating || 1000;
+        await db.ref(`rooms/${roomId}/players/bot_easy`).set({ username: "بوت_سهل", rating: 600, isBot: true });
+        await db.ref(`rooms/${roomId}/players/bot_mid`).set({ username: "بوت_مكافئ", rating: r, isBot: true });
+        await db.ref(`rooms/${roomId}/players/bot_hard`).set({ username: "بوت_قوي", rating: r + 350, isBot: true });
+        await db.ref(`rooms/${roomId}/nextEventTime`).set(Date.now() + 2000);
+    }
+
+    function enterRoomUI() {
+        document.getElementById('screen-join').classList.add('hidden');
+        document.getElementById('screen-room').classList.remove('hidden');
+        listenToDatabase();
+    }
+
+    function copyRoomLink() {
+        navigator.clipboard.writeText(window.location.href);
+        alert("تم نسخ رابط المسابقة بنجاح!");
+    }
+
+    function listenToDatabase() {
+        db.ref('rooms/' + roomId).on('value', (snapshot) => {
+            roomState = snapshot.val();
+            if (!roomState) return;
+
+            updateQueueList(roomState.players || {});
+            renderRoomStates(roomState);
+        });
+    }
+
+    function updateQueueList(playersObj) {
+        const listEl = document.getElementById('box-queue-list');
+        listEl.innerHTML = '';
+        const list = Object.values(playersObj);
+        document.getElementById('text-queue-count').innerText = list.length;
+
+        list.forEach(p => {
+            if (roomState.king?.username === p.username || roomState.opponent?.username === p.username) return;
+            listEl.innerHTML += `<div class="queue-row"><span>${p.username}</span> <span style="color:#aaa;">(${p.rating})</span></div>`;
+        });
+    }
+
+    function renderRoomStates(data) {
+        clearInterval(countdownTimer);
+        const stCard = document.getElementById('panel-status');
+        const gmArea = document.getElementById('panel-game');
+        const finScr = document.getElementById('panel-victory');
+
+        if (data.status === 'finished') {
+            stCard.classList.add('hidden');
+            gmArea.classList.add('hidden');
+            finScr.classList.remove('hidden');
+            document.getElementById('text-ultimate-winner').innerText = `البطل المتوج: ${data.king?.username || 'غير معروف'}`;
+            return;
+        }
+
+        if (data.status === 'waiting' || data.status === 'rest') {
+            stCard.classList.remove('hidden');
+            gmArea.classList.add('hidden');
+            document.getElementById('text-status-title').innerText = data.status === 'waiting' ? "الوقت الباقي لبدء البطولة:" : "استراحة قصيرة قبل التحدي التالي...";
+
+            countdownTimer = setInterval(() => {
+                const remain = Math.max(0, Math.ceil((data.nextEventTime - Date.now()) / 1000));
+                const m = String(Math.floor(remain / 60)).padStart(2, '0');
+                const s = String(remain % 60).padStart(2, '0');
+                document.getElementById('text-timer').innerText = `${m}:${s}`;
+
+                if (remain === 0) {
+                    clearInterval(countdownTimer);
+                    triggerMatchMaker();
+                }
+            }, 500);
+        }
+
+        if (data.status === 'playing') {
+            stCard.classList.add('hidden');
+            gmArea.classList.remove('hidden');
+
+            document.getElementById('text-king-name').innerText = data.king.username;
+            document.getElementById('text-king-rating').innerText = `(${data.king.rating})`;
+            document.getElementById('text-streak-count').innerText = data.streak;
+
+            document.getElementById('text-opp-name').innerText = data.opponent.username;
+            document.getElementById('text-opp-rating').innerText = `(${data.opponent.rating})`;
+
+            turn = data.turn || 'w';
+            if (data.boardFen) deserializeBoard(data.boardFen);
+            drawInteractiveBoard();
+
+            const isMyTurn = (turn === 'w' && currentUser.username === data.king.username) || 
+                             (turn === 'b' && currentUser.username === data.opponent.username);
+            
+            document.getElementById('text-turn-info').innerText = isMyTurn ? "دورك الآن في اللعب! انقر على القطعة ثم المربع المستهدف." : `دور الخصم (${turn === 'w' ? data.king.username : data.opponent.username})`;
+        }
+    }
+
+    function triggerMatchMaker() {
+        const players = Object.values(roomState.players || {});
+        if (players.length < 2) {
+            db.ref(`rooms/${roomId}/nextEventTime`).set(Date.now() + 10000);
+            return;
+        }
+
+        if (currentUser.username !== players[0].username) return; // منع التضارب
+
+        let king = roomState.king;
+        let streak = roomState.streak || 0;
+
+        if (!king) {
+            king = players[Math.floor(Math.random() * players.length)];
+            streak = 0;
+        }
+
+        const opponents = players.filter(p => p.username !== king.username);
+        let opp = null;
+
+        if (streak === 0) {
+            opp = opponents[Math.floor(Math.random() * opponents.length)];
+        } else if (streak === 1) {
+            opp = opponents.reduce((p, c) => Math.abs(c.rating - king.rating) < Math.abs(p.rating - king.rating) ? c : p);
+        } else {
+            const hard = opponents.filter(p => p.rating >= king.rating);
+            opp = hard.length > 0 ? hard[Math.floor(Math.random() * hard.length)] : opponents[0];
+        }
+
+        db.ref(`rooms/${roomId}`).update({
+            status: 'playing',
+            king: king,
+            opponent: opp,
+            streak: streak,
+            boardFen: serializeBoard(),
+            turn: 'w'
+        });
+    }
+
+    // رسم رقعة الشطرنج التفاعلية باللمس
+    function drawInteractiveBoard() {
+        const grid = document.getElementById('chess-board-grid');
+        grid.innerHTML = '';
+        const isBlackPerspective = (roomState && roomState.opponent && currentUser.username === roomState.opponent.username);
+
+        let rows = [0,1,2,3,4,5,6,7];
+        let cols = [0,1,2,3,4,5,6,7];
+        if (isBlackPerspective) {
+            rows = rows.reverse();
+            cols = cols.reverse();
+        }
+
+        for (let r of rows) {
+            for (let c of cols) {
+                const sqDiv = document.createElement('div');
+                sqDiv.className = `chess-square ${(r + c) % 2 === 0 ? 'light' : 'dark'}`;
+                
+                if (selectedSq && selectedSq.r === r && selectedSq.c === c) {
+                    sqDiv.classList.add('selected');
+                }
+
+                const piece = boardState[r][c];
+                if (piece) {
+                    sqDiv.innerText = piecesSymbols[piece] || '';
+                    sqDiv.style.color = (piece === piece.toUpperCase()) ? '#ffffff' : '#111111';
+                }
+
+                sqDiv.onclick = () => onSquareClick(r, c);
+                grid.appendChild(sqDiv);
+            }
+        }
+    }
+
+    function onSquareClick(r, c) {
+        if (!roomState || roomState.status !== 'playing') return;
+
+        const isKing = currentUser.username === roomState.king.username;
+        const isOpp = currentUser.username === roomState.opponent.username;
+
+        if (turn === 'w' && !isKing) return;
+        if (turn === 'b' && !isOpp) return;
+
+        const piece = boardState[r][c];
+        const isMyPiece = piece && ((turn === 'w' && piece === piece.toUpperCase()) || (turn === 'b' && piece === piece.toLowerCase()));
+
+        if (!selectedSq) {
+            if (isMyPiece) {
+                selectedSq = { r, c };
+                drawInteractiveBoard();
+            }
+        } else {
+            if (selectedSq.r === r && selectedSq.c === c) {
+                selectedSq = null;
+                drawInteractiveBoard();
+                return;
+            }
+
+            if (isMyPiece) {
+                selectedSq = { r, c };
+                drawInteractiveBoard();
+                return;
+            }
+
+            // تنفيذ الحركة البسيطة وتحديث القاعدة
+            boardState[r][c] = boardState[selectedSq.r][selectedSq.c];
+            boardState[selectedSq.r][selectedSq.c] = '';
+            
+            // تبديل الدور
+            turn = (turn === 'w') ? 'b' : 'w';
+            selectedSq = null;
+
+            drawInteractiveBoard();
+
+            // فحص بسيط لفوز الملك أو كش مات افتراضي
+            let kingAlive = false;
+            let oppAlive = false;
+            for (let row of boardState) {
+                for (let cell of row) {
+                    if (cell === 'K') kingAlive = true;
+                    if (cell === 'k') oppAlive = true;
+                }
+            }
+
+            let matchEnded = false;
+            let kingWon = true;
+
+            if (!oppAlive) { matchEnded = true; kingWon = true; }
+            else if (!kingAlive) { matchEnded = true; kingWon = false; }
+
+            if (matchEnded) {
+                handleMatchEnd(kingWon);
+            } else {
+                db.ref(`rooms/${roomId}`).update({
+                    boardFen: serializeBoard(),
+                    turn: turn
+                });
+            }
+        }
+    }
+
+    function handleMatchEnd(kingWon) {
+        if (kingWon) {
+            let newStreak = (roomState.streak || 0) + 1;
+            if (newStreak >= 3) {
+                db.ref(`rooms/${roomId}`).update({ status: 'finished', streak: 3 });
+            } else {
+                db.ref(`rooms/${roomId}`).update({ status: 'rest', streak: newStreak, nextEventTime: Date.now() + 15000 });
+            }
+        } else {
+            db.ref(`rooms/${roomId}`).update({ status: 'rest', king: roomState.opponent, opponent: null, streak: 0, nextEventTime: Date.now() + 15000 });
+        }
+    }
+
+    function resignCurrentMatch() {
+        if (!confirm("هل أنت متأكد من الانسحاب؟")) return;
+        const isKing = currentUser.username === roomState.king.username;
+        handleMatchEnd(!isKing);
+    }
+
+    function serializeBoard() {
+        return boardState.map(row => row.join('')).join('/');
+    }
+
+    function deserializeBoard(str) {
+        const rows = str.split('/');
+        boardState = rows.map(r => {
+            let rowArr = [];
+            for (let char of r) {
+                rowArr.push(char === '' ? '' : char);
+            }
+            return rowArr;
+        });
+    }
+</script>
+</body>
+</html>
